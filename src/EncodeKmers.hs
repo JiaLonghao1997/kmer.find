@@ -17,6 +17,7 @@ import           System.Environment (getArgs)
 import           Data.List (foldl')
 
 
+import           Data.Conduit.Algorithms.Utils
 import           Data.Conduit.Algorithms.Async
 
 
@@ -24,13 +25,6 @@ import StorableConduit (writeWord32VS)
 
 
 import Data.BioConduit
-
-enumerate :: Monad m => C.Conduit a m (Int, a)
-enumerate = enumerate' (0 :: Int)
-    where
-        enumerate' !ix = C.await >>= \case
-                            Nothing -> return ()
-                            Just v -> (C.yield (ix, v) >> enumerate' (ix + 1))
 
 alphabetIndex :: VU.Vector Word32
 alphabetIndex = VU.fromList
@@ -90,7 +84,7 @@ main = do
     C.runConduitRes $
         CB.sourceFile (ifileArg opts)
             .| faConduit
-            .| enumerate
+            .| enumerateC
             .| CC.conduitVector 8192
             .| asyncMapC nthreads (V.map (uncurry encodeKMERS))
             .| CC.concat
