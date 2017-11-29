@@ -47,3 +47,5 @@ source-dirs:
 executables:
   EncodeKmers:
     main: EncodeKmers.hs
+  BuildIndex1:
+    main: BuildIndex1.hs
