@@ -49,3 +49,5 @@ executables:
     main: EncodeKmers.hs
   BuildIndex1:
     main: BuildIndex1.hs
+  BuildIndex2:
+    main: BuildIndex2.hs
