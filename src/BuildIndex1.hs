@@ -30,4 +30,4 @@ instance Storable Word32Pair where
         pokeElemOff p' 1 e1
 
 main :: IO ()
-main = sortMainStorable (undefined :: Word32Pair) (200*1000*1000)
+main = sortMainStorable (undefined :: Word32Pair) (4000*1000*1000)
