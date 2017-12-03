@@ -48,8 +48,8 @@ parseArgs argv = foldl' (flip ($)) (CmdArgs "" "" "" False 1) flags
 
 writeOut :: (Storable a, MonadIO m) => Handle -> Handle -> C.Sink ([(Word32, Int)], VS.Vector a) m ()
 writeOut hi hd = do
-        write32 hi 0
-        writeOut' 0 (0 :: Word32)
+        write64 hi 0
+        writeOut' 0 (0 :: Word64)
     where
         writeOut' k pos = C.await >>= \case
             Just (ix, d) -> do
@@ -58,20 +58,20 @@ writeOut hi hd = do
                 writeOut' k' pos'
 
             Nothing -> void $ proc k pos [(finalK + 1, 0)]
-        proc :: MonadIO m => Word32 -> Word32 -> [(Word32, Int)] -> m (Word32, Word32)
+        proc :: MonadIO m => Word32 -> Word64 -> [(Word32, Int)] -> m (Word32, Word64)
         proc !k !pos [] = return (k, pos)
         proc !k !pos t@((!k',!c):ks)
             | k == k' = proc k (pos + toEnum c) ks
             | otherwise = do
-                write32 hi pos
+                write64 hi pos
                 proc (k+1) pos t
 
         writeV h v = VS.unsafeWith v $ \p ->
             hPutBuf h p (4 * VS.length v)
-        write32 :: MonadIO m => Handle -> Word32 -> m ()
-        write32 h val = liftIO . alloca $ \p -> do
+        write64 :: MonadIO m => Handle -> Word64 -> m ()
+        write64 h val = liftIO . alloca $ \p -> do
                 poke p val
-                hPutBuf h p 4
+                hPutBuf h p (sizeOf val)
         finalK :: Word32
         finalK = 2^(28 :: Word32)
 
