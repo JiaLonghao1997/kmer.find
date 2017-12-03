@@ -2,15 +2,11 @@
 
 import qualified Data.Conduit as C
 import           Data.Conduit ((.|))
-import qualified Data.Conduit.Combinators as CC
 import qualified Data.Conduit.Binary as CB
 import           Data.Binary
-import           Data.Bits
 import Control.Monad.IO.Class
 
-import qualified Data.Vector as V
 import qualified Data.Vector.Storable as VS
-import qualified Data.Vector.Unboxed as VU
 import           Control.Concurrent (setNumCapabilities)
 import           System.Console.GetOpt
 import           System.Environment (getArgs)
@@ -21,13 +17,11 @@ import StorableConduit (readWord32VS)
 import System.IO
 import Foreign.Storable
 import Foreign.Marshal.Alloc
+import Data.List
+import Control.Arrow
 
-import           Data.Conduit.Algorithms.Utils
 import           Data.Conduit.Algorithms.Async
 
-
-
-import Data.BioConduit
 
 data CmdArgs = CmdArgs
     { ifileArg :: FilePath
@@ -52,29 +46,43 @@ parseArgs argv = foldl' (flip ($)) (CmdArgs "" "" "" False 1) flags
             ]
 
 
-writeOut hi hd = awaitJust $ \v -> do
-        let k = v VS.! 0
-            ix = v VS.! 1
-        writeIxFromTo 0 k 0
-        write32 hd ix
-        writeOut' k 1
+writeOut :: (Storable a, MonadIO m) => Handle -> Handle -> C.Sink ([(Word32, Int)], VS.Vector a) m ()
+writeOut hi hd = do
+        write32 hi 0
+        writeOut' 0 (0 :: Word32)
     where
+        writeOut' k pos = C.await >>= \case
+            Just (ix, d) -> do
+                liftIO $ writeV hd d
+                (k', pos') <- proc k pos ix
+                writeOut' k' pos'
+
+            Nothing -> void $ proc k pos [(finalK + 1, 0)]
+        proc :: MonadIO m => Word32 -> Word32 -> [(Word32, Int)] -> m (Word32, Word32)
+        proc !k !pos [] = return (k, pos)
+        proc !k !pos t@((!k',!c):ks)
+            | k == k' = proc k (pos + toEnum c) ks
+            | otherwise = do
+                write32 hi pos
+                proc (k+1) pos t
+
+        writeV h v = VS.unsafeWith v $ \p ->
+            hPutBuf h p (4 * VS.length v)
         write32 :: MonadIO m => Handle -> Word32 -> m ()
         write32 h val = liftIO . alloca $ \p -> do
                 poke p val
                 hPutBuf h p 4
-        writeIxFromTo s e val = replicateM_ (fromEnum $ e - s + 1) (write32 hi val)
         finalK :: Word32
-        finalK = 2^28
-        writeOut' !k !n = C.await >>= \case
-            Nothing -> writeIxFromTo (k+1) finalK (n+1)
-            Just v -> do
-                let k' = v VS.! 0
-                    ix = v VS.! 1
-                write32 hd ix
-                when (k /= k') $
-                    writeIxFromTo k k' n
-                writeOut' k' (n+1)
+        finalK = 2^(28 :: Word32)
+
+splitVector :: VS.Vector Word32 -> ([(Word32, Int)], VS.Vector Word32)
+splitVector v = (map (head &&& length) . group . every2 . VS.toList $ v, VS.generate (n `div` 2) (\ix -> v VS.! (2 * ix + 1)))
+    where
+        n = VS.length v
+        every2 :: [Word32] -> [Word32]
+        every2 [] = []
+        every2 [x] = [x]
+        every2 (x:_:xs) = x:every2 xs
 
 main :: IO ()
 main = do
@@ -86,5 +94,6 @@ main = do
         withOutputFile (ofileArg2 opts) $ \hd ->
             C.runConduitRes $
                 CB.sourceFile (ifileArg opts)
-                    .| readWord32VS 2
+                    .| readWord32VS 4096
+                    .| asyncMapC nthreads splitVector
                     .| writeOut hi hd
