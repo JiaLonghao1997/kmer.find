@@ -1,14 +1,10 @@
 {-# LANGUAGE LambdaCase, OverloadedStrings, FlexibleContexts, BangPatterns, PackageImports #-}
 
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.ByteString as B
 import qualified Data.Conduit as C
 import           Data.Conduit ((.|))
 import qualified Data.Conduit.Combinators as CC
 import qualified Data.Conduit.Binary as CB
-import           Data.Binary.Put
 import           Data.Binary
-import           Data.Word
 import           Data.Bits
 import Control.Monad.IO.Class
 
@@ -22,7 +18,9 @@ import           Control.Monad
 import           Data.List (foldl')
 import System.IO.SafeWrite (withOutputFile)
 import StorableConduit (readWord32VS)
-
+import System.IO
+import Foreign.Storable
+import Foreign.Marshal.Alloc
 
 import           Data.Conduit.Algorithms.Utils
 import           Data.Conduit.Algorithms.Async
@@ -61,9 +59,11 @@ writeOut hi hd = awaitJust $ \v -> do
         write32 hd ix
         writeOut' k 1
     where
-        write32 h val = liftIO $ do
-            BL.hPut h (runPut $ putWord32le val)
-        writeIxFromTo s e val = forM_ [s..e] $ \v -> write32 hi val
+        write32 :: MonadIO m => Handle -> Word32 -> m ()
+        write32 h val = liftIO . alloca $ \p -> do
+                poke p val
+                hPutBuf h p 4
+        writeIxFromTo s e val = replicateM_ (fromEnum $ e - s + 1) (write32 hi val)
         finalK :: Word32
         finalK = 2^28
         writeOut' !k !n = C.await >>= \case
