@@ -20,6 +20,15 @@ import           Data.List (foldl')
 import           Data.Conduit.Algorithms.Utils
 import           Data.Conduit.Algorithms.Async
 
+import Control.Monad.IO.Class
+import System.IO.SafeWrite (withOutputFile)
+import StorableConduit (readWord32VS)
+import System.IO
+import Foreign.Storable
+import Foreign.Marshal.Alloc
+import Data.List
+import Control.Arrow
+import Control.Monad
 
 import StorableConduit (writeWord32VS)
 
@@ -54,6 +63,13 @@ encodeKMERS n (Fasta _ fa) = VS.fromList . concat $ [[k, toEnum n] | k <- kmers]
             Nothing -> acc
             Just (h, rest) -> encodeKmer' (acc `shiftL` 4 .|. (alphabetIndex VU.! fromEnum h)) rest
 
+splitTopV :: VS.Vector Word32 -> [VS.Vector Word32]
+splitTopV v = [get k | k <- [0..15]]
+    where
+        nelem = VS.length v `div` 2
+        ixs = VS.fromList [v VS.! (i*2) `shiftR` 24 | i <- [0..nelem - 1]]
+        get k = VS.ifilter (\ix _ -> ixs VS.! (ix `div` 2) == k) v
+
 data CmdArgs = CmdArgs
     { ifileArg :: FilePath
     , ofileArg :: FilePath
@@ -75,6 +91,18 @@ parseArgs argv = foldl' (flip ($)) (CmdArgs "" "" False 1) flags
             ]
 
 
+writeToSplits base = do
+        hs <- liftIO $ sequence [openFile (base ++ "."++show i) WriteMode | i <- [0..15]]
+        writeToSplits' hs
+        forM_ hs (liftIO . hClose)
+    where
+        writeToSplits' hs = C.awaitForever $ \vs -> forM_ (zip hs vs) $ \(h, v) -> liftIO (writeV h v)
+        writeV h v = VS.unsafeWith v $ \p ->
+            hPutBuf h p (sizeOf (VS.head v) * VS.length v)
+
+concatV :: V.Vector [VS.Vector Word32] -> [VS.Vector Word32]
+concatV v = [(VS.concat . (map (!! i)) . V.toList $ v) | i <- [0..15]]
+
 main :: IO ()
 main = do
     opts <- parseArgs <$> getArgs
@@ -86,7 +114,5 @@ main = do
             .| faConduit
             .| enumerateC
             .| CC.conduitVector 8192
-            .| asyncMapC nthreads (V.map (uncurry encodeKMERS))
-            .| CC.concat
-            .| writeWord32VS
-            .| CB.sinkFileCautious (ofileArg opts)
+            .| asyncMapC nthreads (concatV . V.map (splitTopV . uncurry encodeKMERS))
+            .| writeToSplits (ofileArg opts)
