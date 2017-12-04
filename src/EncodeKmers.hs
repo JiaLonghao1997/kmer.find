@@ -50,18 +50,11 @@ alphabetIndex = VU.fromList
                     , 0,  0,  0,  0,  0,  0]
 
 encodeKMERS :: Int -> Fasta -> VS.Vector Word32
-encodeKMERS n (Fasta _ fa) = VS.fromList . concat $ [[k, toEnum n] | k <- kmers]
+encodeKMERS n (Fasta _ fa) = VS.fromList . concatMap (\k -> [k, toEnum n]) . drop 7 $ scanl k1 0 (B.unpack fa)
     where
-        kmers = map encodeKmer $ slidingWindow 7 fa
-        slidingWindow :: Int -> B.ByteString -> [B.ByteString]
-        slidingWindow ws b
-            | ws > B.length b = []
-            | otherwise = B.take ws b:slidingWindow ws (B.tail b)
-        encodeKmer :: B.ByteString -> Word32
-        encodeKmer = encodeKmer' 0
-        encodeKmer' acc b = case B.uncons b of
-            Nothing -> acc
-            Just (h, rest) -> encodeKmer' (acc `shiftL` 4 .|. (alphabetIndex VU.! fromEnum h)) rest
+        k1 :: Word32 -> Word8 -> Word32
+        k1 k b = let b' = alphabetIndex VU.! fromEnum b
+                        in ((k .&. 0xffffff) `shiftL` 4) .|. b'
 
 splitTopV :: VS.Vector Word32 -> [VS.Vector Word32]
 splitTopV v = [get k | k <- [0..15]]
