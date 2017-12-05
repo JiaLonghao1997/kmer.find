@@ -27,6 +27,7 @@ dependencies:
   - filemanip
   - hashtables
   - primitive
+  - mmap
   - MissingH
   - resourcet
   - temporary
@@ -45,6 +46,8 @@ source-dirs:
   - ./src
 
 executables:
+  Query:
+    main: Query.hs
   EncodeKmers:
     main: EncodeKmers.hs
   BuildIndex1:
