@@ -58,9 +58,7 @@ writeOut hi hd = do
                 (k', pos') <- proc k pos ix
                 writeOut' k' pos'
 
-            Nothing -> do
-                liftIO $ putStrLn $ "Last k: " ++ show k
-                void $ proc k pos [(finalK, 0)]
+            Nothing -> void $ proc k pos [(finalK, 0)]
         proc :: MonadIO m => Word32 -> Word64 -> [(Word32, Int)] -> m (Word32, Word64)
         proc !k !pos [] = return (k, pos)
         proc !k !pos t@((!k',!c):ks) = case compare k k' of
