@@ -18,6 +18,7 @@ import System.IO
 import Foreign.Storable
 import Foreign.Marshal.Alloc
 import Data.List
+import Control.Monad
 import Control.Arrow
 
 import           Data.Conduit.Algorithms.Async
@@ -57,23 +58,29 @@ writeOut hi hd = do
                 (k', pos') <- proc k pos ix
                 writeOut' k' pos'
 
-            Nothing -> void $ proc k pos [(finalK + 1, 0)]
+            Nothing -> do
+                liftIO $ putStrLn $ "Last k: " ++ show k
+                void $ proc k pos [(finalK, 0)]
         proc :: MonadIO m => Word32 -> Word64 -> [(Word32, Int)] -> m (Word32, Word64)
         proc !k !pos [] = return (k, pos)
-        proc !k !pos t@((!k',!c):ks)
-            | k == k' = proc k (pos + toEnum c) ks
-            | otherwise = do
-                write64 hi pos
-                proc (k+1) pos t
+        proc !k !pos t@((!k',!c):ks) = case compare k k' of
+            GT -> error ("SHOULD NEVER HAVE HAPPENED (" ++ show k ++ "< " ++ show k' ++")")
+            EQ -> proc k (pos + toEnum c) ks
+            LT -> do
+                if k' > finalK
+                    then error $ "Saw "++show k' ++ " > " ++show finalK
+                    else do
+                        write64 hi pos
+                        proc (k+1) pos t
 
         writeV h v = VS.unsafeWith v $ \p ->
-            hPutBuf h p (4 * VS.length v)
+            hPutBuf h p (sizeOf (VS.head v) * VS.length v)
         write64 :: MonadIO m => Handle -> Word64 -> m ()
         write64 h val = liftIO . alloca $ \p -> do
                 poke p val
                 hPutBuf h p (sizeOf val)
         finalK :: Word32
-        finalK = 2^(28 :: Word32)
+        finalK = 2^(29 :: Word32)
 
 splitVector :: VS.Vector Word32 -> ([(Word32, Int)], VS.Vector Word32)
 splitVector v = (map (head &&& length) . group . every2 . VS.toList $ v, VS.generate (n `div` 2) (\ix -> v VS.! (2 * ix + 1)))
