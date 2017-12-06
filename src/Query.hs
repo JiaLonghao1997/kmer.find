@@ -1,6 +1,7 @@
 {-# LANGUAGE LambdaCase, OverloadedStrings, FlexibleContexts, BangPatterns, PackageImports #-}
 
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.Conduit as C
 import           Data.Conduit ((.|))
 import qualified Data.Conduit.Combinators as CC
@@ -91,6 +92,10 @@ parseArgs argv = foldl' (flip ($)) (CmdArgs "" "" "" "" False 1) flags
             ]
 
 
+printMatch (Fasta fah _) matches = do
+    putStrLn $ ">" ++ B8.unpack fah
+    forM_ matches (putStrLn . show)
+
 main :: IO ()
 main = do
     opts <- parseArgs <$> getArgs
@@ -106,4 +111,5 @@ main = do
             p1' <- newForeignPtr_ $ castPtr p1
             p2' <- newForeignPtr_ $ castPtr p2
             let ix = Index (VS.unsafeFromForeignPtr0 p1' (s1 `div` 8)) (VS.unsafeFromForeignPtr0 p2' (s2 `div` 4))
-            forM_ qs (putStrLn . show . findMatches ix . encodeKMERS)
+            forM_ qs $ \q ->
+                printMatch q . findMatches ix . encodeKMERS $ q
