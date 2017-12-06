@@ -16,7 +16,7 @@ import qualified Data.Vector.Unboxed as VU
 import           Control.Concurrent (setNumCapabilities)
 import           System.Console.GetOpt
 import           System.Environment (getArgs)
-import           Data.List (foldl', sort, group)
+import           Data.List (foldl', sort, group, sortBy)
 import           Data.List.Extra (merge)
 
 import           System.IO.MMap
@@ -40,13 +40,19 @@ data Index = Index
                 }
 
 findMatches :: Index -> VS.Vector Word32 -> [Word32]
-findMatches ix = top 100 . map (VS.toList . extract ix) . VS.toList
+findMatches ix = top 100 . map (uniq . VS.toList . extract ix) . every2 . VS.toList
 
 extract :: Index -> Word32 -> VS.Vector Word32
 extract (Index ix d) k = VS.slice (fromEnum $ ix VS.! fromEnum k) (fromEnum $ (ix VS.! fromEnum (k+1)) - (ix VS.! fromEnum k)) d
 
 top :: Int -> [[Word32]] -> [Word32]
-top n = map snd . take n . sort . asCounts . mergeMany
+top n = map snd . take n . sortBy (\a b -> compare b a) . asCounts . mergeMany . map uniq
+
+uniq [] = []
+uniq [x] = [x]
+uniq (x:y:xs)
+    | x == y = uniq (y:xs)
+    | otherwise = x:uniq (y:xs)
 
 mergeMany [] = []
 mergeMany [xs] = xs
