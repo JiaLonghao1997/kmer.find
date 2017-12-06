@@ -106,4 +106,4 @@ main = do
             p1' <- newForeignPtr_ $ castPtr p1
             p2' <- newForeignPtr_ $ castPtr p2
             let ix = Index (VS.unsafeFromForeignPtr0 p1' (s1 `div` 8)) (VS.unsafeFromForeignPtr0 p2' (s2 `div` 4))
-            forM_ qs (putStrLn . show . findMatches ix . encodeKMERS 0)
+            forM_ qs (putStrLn . show . findMatches ix . encodeKMERS)

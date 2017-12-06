@@ -26,8 +26,8 @@ alphabetIndex = VU.fromList
                     , 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
                     , 0,  0,  0,  0,  0,  0]
 
-encodeKMERS :: Int -> Fasta -> VS.Vector Word32
-encodeKMERS n (Fasta _ fa) = VS.fromList . concatMap (\k -> [k, toEnum n]) . drop 7 $ scanl k1 0 (B.unpack fa)
+encodeKMERS :: Fasta -> VS.Vector Word32
+encodeKMERS (Fasta _ fa) = VS.fromList . drop 7 $ scanl k1 0 (B.unpack fa)
     where
         k1 :: Word32 -> Word8 -> Word32
         k1 k b = let b' = alphabetIndex VU.! fromEnum b

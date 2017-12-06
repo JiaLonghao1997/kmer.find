@@ -66,6 +66,9 @@ writeToSplits base = do
 concatV :: V.Vector [VS.Vector Word32] -> [VS.Vector Word32]
 concatV v = [(VS.concat . (map (!! i)) . V.toList $ v) | i <- [0..15]]
 
+encodeKMERS' n fa = let ks = encodeKMERS fa
+                        in VS.generate (VS.length ks * 2) (\ix -> if ix `mod` 2 == 0 then ks VS.! (ix `div` 2) else toEnum n)
+
 main :: IO ()
 main = do
     opts <- parseArgs <$> getArgs
@@ -77,5 +80,5 @@ main = do
             .| faConduit
             .| enumerateC
             .| CC.conduitVector 8192
-            .| asyncMapC nthreads (concatV . V.map (splitTopV . uncurry encodeKMERS))
+            .| asyncMapC nthreads (concatV . V.map (splitTopV . uncurry encodeKMERS'))
             .| writeToSplits (ofileArg opts)
