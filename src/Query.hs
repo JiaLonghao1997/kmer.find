@@ -7,34 +7,26 @@ import           Data.Conduit ((.|))
 import qualified Data.Conduit.Combinators as CC
 import qualified Data.Conduit.Binary as CB
 import           Data.Word
-import           Data.Bits
 import           Control.Monad
-import           Control.Arrow
 
 import qualified Data.Vector as V
 import qualified Data.Vector.Storable as VS
-import qualified Data.Vector.Unboxed as VU
 import           Control.Concurrent (setNumCapabilities)
 import           System.Console.GetOpt
 import           System.Environment (getArgs)
-import           Data.List (foldl', sort, group, sortBy)
+import           Data.List (foldl', sortBy)
 import           Data.List.Extra (merge)
 
 import           System.IO.MMap
 import           Foreign.ForeignPtr
 import           Foreign.Ptr
 
-import           Data.Conduit.Algorithms.Utils
 import           Data.Conduit.Algorithms.Async
 import           Control.Monad.IO.Class
 
 
-import StorableConduit (writeWord32VS)
-
 import Kmers (encodeKMERS)
 import Data.BioConduit
-
-type Kmer = Word32
 
 data Index = Index
                 { ixdIndices :: !(VS.Vector Word64)
@@ -48,7 +40,7 @@ extract :: Index -> Word32 -> VS.Vector Word32
 extract (Index ix d) k = VS.slice (fromEnum $ ix VS.! fromEnum k) (fromEnum $ (ix VS.! fromEnum (k+1)) - (ix VS.! fromEnum k)) d
 
 top :: Int -> [[Word32]] -> [Word32]
-top n = map snd . topNBy n (\a b -> compare b a) . asCounts . mergeMany . map uniq
+top n = map snd . topNBy n (\a b -> compare b a) . mergeMany . map (map $ \v -> (1 :: Int, v))
 
 topNBy :: Int -> (a -> a -> Ordering) -> [a] -> [a]
 topNBy n f xs = let
@@ -75,15 +67,19 @@ uniq (x:y:xs)
 
 mergeMany [] = []
 mergeMany [xs] = xs
-mergeMany [x,y] = merge x y
-mergeMany xs = merge (mergeMany $ every2 xs) (mergeMany $ every2 (tail xs))
+mergeMany [x,y] = merge2 x y
+mergeMany xs = merge2 (mergeMany $ every2 xs) (mergeMany $ every2 (tail xs))
+
+merge2 xs [] = xs
+merge2 [] xs = xs
+merge2 xs@(h0@(c0,v0):xss) ys@(h1@(c1,v1):yss) = case compare v0 v1 of
+    EQ -> (c0 + c1, v0):merge2 xss yss
+    LT -> h0:merge2 xss ys
+    GT -> h1:merge2 xs yss
 
 every2 [] = []
 every2 [x] = [x]
 every2 (x:_:xs) = x:every2 xs
-
-asCounts :: Eq a => [a] -> [(Int, a)]
-asCounts = map (length &&& head) . group
 
 data CmdArgs = CmdArgs
                     { ifileArg :: FilePath
@@ -128,6 +124,5 @@ main = do
             C.runConduitRes $
                 CB.sourceFile (ifileArg opts)
                     .| faConduit
-                    .| CC.conduitVector 128
-                    .| asyncMapC nthreads (V.map $ \q -> (q, findMatches ix $ encodeKMERS q))
-                    .| CC.mapM_ (liftIO . V.mapM_ (uncurry printMatch))
+                    .| asyncMapC (2*nthreads) (\q -> (q, findMatches ix $ encodeKMERS q))
+                    .| CC.mapM_ (liftIO . uncurry printMatch)
