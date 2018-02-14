@@ -1,11 +1,10 @@
-resolver: lts-9.4
+resolver: lts-10.4
 compiler-check: newer-minor
 
 
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
 extra-deps:
-  - diskhash-0.0.3.2
-  - conduit-algorithms-0.0.6.0
+  - diskhash-0.0.4.0
 
 # Override default flag values for local packages and extra-deps
 flags: {}
