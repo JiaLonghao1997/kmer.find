@@ -1,6 +1,5 @@
 {-# LANGUAGE LambdaCase, OverloadedStrings, FlexibleContexts, BangPatterns, PackageImports #-}
 
-import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Conduit as C
 import           Data.Conduit ((.|))
@@ -9,12 +8,12 @@ import qualified Data.Conduit.Binary as CB
 import           Data.Word
 import           Control.Monad
 
-import qualified Data.Vector as V
 import qualified Data.Vector.Storable as VS
 import           Control.Concurrent (setNumCapabilities)
 import           System.Console.GetOpt
 import           System.Environment (getArgs)
-import           Data.List (foldl', sortBy)
+import           Data.Ord (comparing)
+import           Data.List (foldl', sortBy, insertBy, span)
 import           Data.List.Extra (merge)
 
 import           System.IO.MMap
@@ -59,6 +58,7 @@ topNBy n f xs = let
                         | otherwise = r:put1 x rs
                 in reverse $ insert rest (sortBy (\a b -> f b a) top)
 
+uniq :: Eq a => [a] -> [a]
 uniq [] = []
 uniq [x] = [x]
 uniq (x:y:xs)
@@ -113,7 +113,8 @@ printMatch (Fasta fah _) matches = do
 main :: IO ()
 main = do
     opts <- parseArgs <$> getArgs
-    print opts
+    when (verboseArg opts) $
+        print opts
     let nthreads = nJobsArg opts
     setNumCapabilities nthreads
     mmapWithFilePtr (index1Arg opts) ReadOnly Nothing $ \(p1, s1) -> do
