@@ -54,9 +54,10 @@ source-dirs:
 executables:
   Query:
     main: Query.hs
+    other-modules: []
   EncodeKmers:
     main: EncodeKmers.hs
-  BuildIndex1:
-    main: BuildIndex1.hs
+    other-modules: []
   BuildIndex2:
     main: BuildIndex2.hs
+    other-modules: []
