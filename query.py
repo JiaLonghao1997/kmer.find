@@ -1,15 +1,16 @@
+from os import path
 from itertools import chain
-from skbio import alignment
 from fasta_reader import IndexedFastaReader
-from skbio import sequence
+import skbio.alignment
+import skbio.sequence
 import skbio.io
 from sys import argv
 import subprocess
 
-query_fname = argv[1]
-index_fname= argv[2]
-headers_fname = argv[3]
+index_fname = argv[1]
+query_fname = argv[2]
 
+index_base, index_fname  = path.split(path.abspath(index_fname))
 
 class GetNames(object):
     def __init__(self, fname):
@@ -23,16 +24,18 @@ for fa in skbio.io.read(query_fname, format='fasta'):
     Qs[fa.metadata['id']] = str(fa)
 
 
-headers = GetNames(headers_fname)
+headers = GetNames(f'{index_base}/kmer.index/{index_fname}.names.32')
 print("Loaded headers")
 
-index = IndexedFastaReader(index_fname)
+index = IndexedFastaReader(path.join(index_base, index_fname))
 
-data = subprocess.check_output(['Query', '-i', query_fname, '-o', '/dev/stdout', '-1', 'kmer.index/GMGC.95nr.faa.kmer.ix1', '-2', 'kmer.index/GMGC.95nr.faa.kmer.ix2']).decode('ascii')
+data = subprocess.Popen(['Query', '-i', query_fname, '-o', '/dev/stdout', '-1', f'{index_base}/kmer.index/{index_fname}.kmer.ix1', '-2', f'{index_base}/kmer.index/{index_fname}.kmer.ix2'],
+        stdout=subprocess.PIPE)
 
 matches = []
-for line in chain(data.splitlines(), ['END']):
-    if line.startswith('CmdArgs'): continue
+for line in chain(data.stdout, [b'END']):
+    if line.startswith(b'CmdArgs'): continue
+    line = line.decode('ascii')
     if line[0] == '>' or line == 'END':
         if len(matches):
             matches.sort(key=lambda m: m[1]['optimal_alignment_score'], reverse=True)
