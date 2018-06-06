@@ -3,7 +3,7 @@
 set -e
 export PATH=/g/scb2/bork/coelho/DD_DeCaF/genecats/sources/kmer-find/bin/:$PATH
 
-input_faa=GMGC.95nr.faa
+input_faa="$1"
 
 mkdir kmer.index
 echo "starting..."
