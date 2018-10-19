@@ -14,38 +14,19 @@ ghc-options:
 
 dependencies:
   - base >= 4.7 && < 5
-  - async
   - binary
-  - binary-conduit
   - bytestring
   - conduit
   - conduit-extra
   - conduit-combinators
   - conduit-algorithms
-  - containers
-  - data-hash
   - deepseq
   - directory
-  - diskhash
-  - exceptions
   - extra
-  - filepath
-  - filemanip
-  - hashtables
-  - primitive
   - mmap
-  - MissingH
-  - resourcet
   - temporary
-  - text
-  - transformers
-  - transformers-base
-  - safe
   - safeio
-  - strict
-  - stringsearch
   - vector
-  - vector-algorithms
 
 
 source-dirs:
