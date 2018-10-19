@@ -52,7 +52,7 @@ for line in chain(data.stdout, [b'END']):
         fa = Qs[active]
         sw = skbio.alignment.StripedSmithWaterman(fa)
     else:
-        ix = int(line.strip())
-        name = headers.get(ix)
-        matches.append((name, sw(index.get(name).decode('ascii'))))
+        name = headers.get(int(line.strip()))
+        seq = index.get(name).decode('ascii')
+        matches.append((name, sw(seq)))
 
