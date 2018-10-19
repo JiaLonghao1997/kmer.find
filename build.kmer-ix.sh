@@ -1,16 +1,21 @@
 #!/usr/bin/env bash
 
 set -e
-export PATH=/g/scb2/bork/coelho/DD_DeCaF/genecats/sources/kmer-find/bin/:$PATH
+export PATH=$PWD/bin/:$PATH
 
 input_faa="$1"
+
+if ! test -f ${input_faa}.dhi; then
+	echo "FASTA file not indexed. Indexing..."
+	index_fasta ${input_faa}
+fi
 
 mkdir kmer.index
 echo "starting..."
 EncodeKmers -i ${input_faa} -o kmer.index/${input_faa}.kmer.ix -t8
 
 echo "Encoding kmers done"
-extract-names32.py ${input_faa} kmer.index/${input_faa}.names32
+python extract-names32.py ${input_faa} kmer.index/${input_faa}.names.32
 cd kmer.index
 du -sh *
 
