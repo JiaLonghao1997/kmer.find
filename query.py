@@ -29,7 +29,11 @@ print("Loaded headers")
 
 index = IndexedFastaReader(path.join(index_base, index_fname))
 
-data = subprocess.Popen(['Query', '-i', query_fname, '-o', '/dev/stdout', '-1', f'{index_base}/kmer.index/{index_fname}.kmer.ix1', '-2', f'{index_base}/kmer.index/{index_fname}.kmer.ix2'],
+data = subprocess.Popen(['Query',
+                '-i', query_fname,
+                '-o', '/dev/stdout',
+                '-1', f'{index_base}/kmer.index/{index_fname}.kmer.ix1',
+                '-2', f'{index_base}/kmer.index/{index_fname}.kmer.ix2'],
         stdout=subprocess.PIPE)
 
 matches = []
