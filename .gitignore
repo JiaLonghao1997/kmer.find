@@ -1,3 +1,4 @@
-bin
 kmer-find.cabal
-*.kindex/
+bin/
+kmer.index/
+.stack-work/
