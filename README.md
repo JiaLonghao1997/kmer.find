@@ -17,4 +17,8 @@ To build the index, run
 
 ./build.kmer-ix.sh test.faa
 
+To query the index, run
+
+python query.py test.faa query.faa
+
 License: MIT
