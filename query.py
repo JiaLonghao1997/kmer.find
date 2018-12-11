@@ -6,6 +6,9 @@ import skbio.sequence
 import skbio.io
 from sys import argv
 import subprocess
+import math
+import count_aas
+from BLOSUM import blosum62, blosum50
 
 index_fname = argv[1]
 query_fname = argv[2]
@@ -18,17 +21,17 @@ class GetNames(object):
     def get(self, ix):
         self.headers.seek(32 * ix)
         return self.headers.readline().decode('ascii').strip()
-
+        
 Qs = {}
 for fa in skbio.io.read(query_fname, format='fasta'):
     Qs[fa.metadata['id']] = str(fa)
 
-
+    
 headers = GetNames(f'{index_base}/kmer.index/{index_fname}.names.32')
-print("Loaded headers")
-
+print("Loaded headers") 
+    
 index = IndexedFastaReader(path.join(index_base, index_fname))
-
+    
 data = subprocess.Popen(['Query',
                 '-i', query_fname,
                 '-o', '/dev/stdout',
@@ -36,7 +39,14 @@ data = subprocess.Popen(['Query',
                 '-2', f'{index_base}/kmer.index/{index_fname}.kmer.ix2'],
         stdout=subprocess.PIPE)
 
-matches = []
+index_list = count_aas.count_aas(index_fname)
+query_list = count_aas.count_aas(query_fname)
+
+matches = []	
+lamda =	 0.318                        # λ is the Gumble distribution constant
+K = 0.13                              # K is a constant associated with the scoring matrix used.
+query_sequence = query_list[0]        # the query sequence length(n)
+database_sequence = sum(index_list)   # the sum of the lengths of the sequences in the database(m)
 for line in chain(data.stdout, [b'END']):
     if line.startswith(b'CmdArgs'): continue
     line = line.decode('ascii')
@@ -44,15 +54,17 @@ for line in chain(data.stdout, [b'END']):
         if len(matches):
             matches.sort(key=lambda m: m[1]['optimal_alignment_score'], reverse=True)
             for fah, m in matches:
-                print(f'{active}\t{fah}\t{m.optimal_alignment_score}')
+                bit_score = (lamda * m.optimal_alignment_score - math.log(K)) / math.log(2)	
+                p_value = math.pow(2, (-bit_score))
+                E_value = database_sequence * query_sequence * p_value
+                print(f'{active}\t{fah}\t{m.optimal_alignment_score}\t{bit_score}\t{E_value}')
             matches = []
         if line == "END":
             break
         active = line[1:].strip()
         fa = Qs[active]
-        sw = skbio.alignment.StripedSmithWaterman(fa)
+        sw = skbio.alignment.StripedSmithWaterman(fa, substitution_matrix=blosum62,gap_open_penalty=11,gap_extend_penalty=1)
     else:
         name = headers.get(int(line.strip()))
         seq = index.get(name).decode('ascii')
         matches.append((name, sw(seq)))
-
