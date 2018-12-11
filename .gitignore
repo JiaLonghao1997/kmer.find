@@ -2,3 +2,4 @@ kmer-find.cabal
 bin/
 kmer.index/
 .stack-work/
+__pycache__
