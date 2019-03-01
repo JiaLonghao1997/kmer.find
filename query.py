@@ -39,14 +39,15 @@ data = subprocess.Popen(['Query',
                 '-2', f'{index_base}/kmer.index/{index_fname}.kmer.ix2'],
         stdout=subprocess.PIPE)
 
-index_list = count_aas.count_aas(index_fname)
 query_list = count_aas.count_aas(query_fname)
 
 matches = []	
 lamda =	 0.318                        # λ is the Gumble distribution constant
 K = 0.13                              # K is a constant associated with the scoring matrix used.
 query_sequence = query_list[0]        # the query sequence length(n)
-database_sequence = sum(index_list)   # the sum of the lengths of the sequences in the database(m)
+for line in open(f'{index_base}/{index_fname}.databasesize'):
+    database_size = int(line.strip())  #the size of the database(m)
+
 for line in chain(data.stdout, [b'END']):
     if line.startswith(b'CmdArgs'): continue
     line = line.decode('ascii')
@@ -56,7 +57,7 @@ for line in chain(data.stdout, [b'END']):
             for fah, m in matches:
                 bit_score = (lamda * m.optimal_alignment_score - math.log(K)) / math.log(2)	
                 p_value = math.pow(2, (-bit_score))
-                E_value = database_sequence * query_sequence * p_value
+                E_value = database_size * query_sequence * p_value
                 print(f'{active}\t{fah}\t{m.optimal_alignment_score}\t{bit_score}\t{E_value}')
             matches = []
         if line == "END":
