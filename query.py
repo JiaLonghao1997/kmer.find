@@ -51,7 +51,6 @@ for line in chain(data.stdout, [b'END']):
     if line[0] == '>' or line == 'END':
         if len(matches):
             matches.sort(key=lambda m: m[1]['optimal_alignment_score'], reverse=True)
-            print(matches)
             for fah, m in matches:
                 bit_score = (lamda * m.optimal_alignment_score - math.log(K)) / math.log(2)	
                 p_value = math.pow(2, (-bit_score))
